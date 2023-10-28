@@ -1,5 +1,7 @@
 
-# Projeto: Análise de otimização energética
+# Projeto: Análise de otimização energética - Aplicativo em Python com Tkinter
+
+Este é um aplicativo Python com uma interface gráfica desenvolvida com Tkinter que permite a análise de consumo de energia residencial. Ele oferece análises de consumo, alertas e opções de otimização com base nos dados de consumo de energia de uma residência.
 
 ## Equipe
 
@@ -22,10 +24,6 @@ O obejtivo é o aplicativo executar as seguintes funções:
 ## Motivação
 
 A motivação do aplicativo é otimizar o consumo das residências. A curto prazo, para diminuir o consumo e/ou identificar de forma mais rápida possíveis problemas em equipamentos. A médio prazo, temos a implantação de energias renováveis, que ajudará o consumidor a economizar. A longo prazo, temos a diminuição dos impactos naturais gerados, ao otimizar-se o consumo e usar-se energias renováveis.
-
-# Consumo de Energia Residencial - Aplicativo em Python com Tkinter
-
-Este é um aplicativo Python com uma interface gráfica desenvolvida com Tkinter que permite a análise de consumo de energia residencial. Ele oferece análises de consumo, alertas e opções de otimização com base nos dados de consumo de energia de uma residência.
 
 
 ## Como Usar o Aplicativo
