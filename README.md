@@ -22,3 +22,25 @@ O obejtivo é o aplicativo executar as seguintes funções:
 ## Motivação
 
 A motivação do aplicativo é otimizar o consumo das residências. A curto prazo, para diminuir o consumo e/ou identificar de forma mais rápida possíveis problemas em equipamentos. A médio prazo, temos a implantação de energias renováveis, que ajudará o consumidor a economizar. A longo prazo, temos a diminuição dos impactos naturais gerados, ao otimizar-se o consumo e usar-se energias renováveis.
+
+# Consumo de Energia Residencial - Aplicativo em Python com Tkinter
+
+Este é um aplicativo Python com uma interface gráfica desenvolvida com Tkinter que permite a análise de consumo de energia residencial. Ele oferece análises de consumo, alertas e opções de otimização com base nos dados de consumo de energia de uma residência.
+
+
+## Como Usar o Aplicativo
+
+### Pré-requisitos
+
+- Certifique-se de que você tenha o Python instalado em seu desktop. Você pode baixar o Python em [python.org](https://www.python.org/downloads/). O aplicativo foi desenvolvido e testado com o Python 3.
+
+### Executando o Aplicativo
+
+1. Clone ou faça o download deste repositório em seu computador.
+
+2. Navegue até a pasta onde os arquivos do aplicativo estão localizados.
+
+3. Abra um terminal de comando ou prompt de comando na pasta do aplicativo.
+
+4. Execute o seguinte comando para iniciar o aplicativo:
+
