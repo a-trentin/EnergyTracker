@@ -1,202 +1,261 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from datetime import datetime
-import calendar as cal
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import numpy as np
-from datetime import datetime
+import pandas as pd
+import os
+import re
 
-historico_gastos = []
-data_atual = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+# Função para validar o formato da data
+def validar_data(data):
+    padrao_data = re.compile(r'^\d{2}/\d{2}/\d{4}$')
+    return bool(padrao_data.match(data))
 
+# Função para salvar o histórico no arquivo CSV
+def salvar_historico():
+    data_conta = entry_data.get()
+    valor_conta = entry_valor.get()
 
-# ...
-
-def calcular_gastos():
-    try:
-        # Obter valores dos widgets de entrada
-        consumo = float(entry_consumo.get())
-        tarifa = float(entry_tarifa.get())
-
-        # Obter o mês e ano selecionados nos menus suspensos
-        mes_nome = mes_var.get()
-        mes_numero = meses.index(mes_nome) + 1  # +1 porque os índices começam em 1 no calendário
-        ano = ano_var.get()
-
-        # Obter o último dia do mês
-        ultimo_dia_mes = cal.monthrange(int(ano), mes_numero)[1]
-
-        # Formatar a data no formato desejado (brasileiro)
-        data_atual_global = datetime(int(ano), mes_numero, ultimo_dia_mes, 0, 0, 0)
-        mes_ano = f"{ano}-{mes_numero:02d}"
-
-        print(f"Data Atual: {data_atual_global.strftime('%d/%m/%Y %H:%M:%S')}")
-        print(f"Mês/Ano: {mes_ano}")
-
-        # Calcular gastos energéticos
-        gastos = consumo * tarifa
-
-        print(f"Gastos Calculados: {gastos}")
-
-        # Adicionar gastos, data e mês/ano ao histórico
-        historico_gastos.append((data_atual_global.strftime('%d/%m/%Y %H:%M:%S'), mes_ano, gastos))
-
-        # Atualizar rótulo de resultado
-        resultado.config(text=f"Gastos: R$ {gastos:.2f} para {mes_ano}")
-
-        # Limpar campos de entrada
-        entry_consumo.delete(0, tk.END)
-        entry_tarifa.delete(0, tk.END)
-
-        # Atualizar o gráfico
-        atualizar_grafico()
-
-    except ValueError as e:
-        print(f"Erro: {e}")
-        resultado.config(text="Digite valores válidos.")
-        messagebox.showerror("Erro", "Digite valores válidos.")
-
-
-def abrir_segunda_janela():
-    segunda_janela = tk.Toplevel(janela)
-    segunda_janela.title("Acompanhamento de Gastos")
-
-    # Configurar gráfico
-    fig, ax = plt.subplots()
-    canvas = FigureCanvasTkAgg(fig, master=segunda_janela)
-    canvas_widget = canvas.get_tk_widget()
-    canvas_widget.pack()
-
-    # Atualizar o gráfico na nova janela
-    atualizar_grafico()
-
-    # Configurar gráfico na interface
-    canvas.draw()
-
-import calendar
-
-# ...
-
-def abrir_terceira_janela():
-    if not historico_gastos:
-        messagebox.showinfo("Aviso", "Não há dados para exibir na projeção.")
+    if not validar_data(data_conta):
+        messagebox.showinfo("Erro", "Formato de data inválido. Use DD/MM/AAAA.")
         return
 
-    terceira_janela = tk.Toplevel(janela)
-    terceira_janela.title("Projeção de Gastos Mensais")
+    try:
+        # Criar o DataFrame se o arquivo CSV existir
+        if os.path.exists('historico_contas.csv'):
+            df = pd.read_csv('historico_contas.csv')
+        else:
+            df = pd.DataFrame(columns=['Data', 'Valor'])
 
-    # Obter os dados para a projeção
-    meses_anos, gastos = zip(*[(mes_ano, gasto) for _, mes_ano, gasto in historico_gastos])
+        # Adicionar nova entrada ao DataFrame apenas se ambos os valores estiverem presentes
+        if data_conta and valor_conta:
+            nova_entrada = pd.DataFrame({'Data': [data_conta], 'Valor': [float(valor_conta)]})
+            df = pd.concat([df, nova_entrada], ignore_index=True)
 
-    # Calcular projeção linear com +/- 5% do gasto dos meses anteriores
-    gastos_projetados = [gastos[0]]  # O primeiro valor não é projetado, é o valor real
-    for i in range(1, len(gastos)):
-        gasto_proj = gastos[i - 1] * np.random.uniform(0.95, 1.05)
-        gastos_projetados.append(gasto_proj)
+        # Salvar o DataFrame de volta ao arquivo CSV
+        df.to_csv('historico_contas.csv', index=False)
 
-    # Adicionar gastos projetados ao histórico
-    mes_ano_proj = f"{ano_var.get()}-{mes_var.get()}"
-    historico_gastos.append((datetime.now().strftime("%d/%m/%Y %H:%M:%S"), mes_ano_proj, gastos_projetados[-1]))
+        messagebox.showinfo("Sucesso", "Dados salvos com sucesso.")
+    except Exception as e:
+        messagebox.showinfo("Erro", f"Erro ao salvar dados: {str(e)}")
 
-    # Configurar gráfico para exibir gastos e projeção
-    meses_numeros = [int(m.split('-')[1]) if "-" in m else datetime.strptime(m, "%d/%m/%Y %H:%M:%S").month for m in meses_anos]
-    plt.plot(np.array(meses_numeros), gastos, marker='o', linestyle='-', color='b', label='Gastos Reais')
-    plt.plot(np.array(meses_numeros)[1:], gastos_projetados[1:], marker='x', linestyle='--', color='r', label='Projeção')
-    plt.title('Projeção de Gastos Mensais')
-    plt.xlabel('Mês/Ano')
-    plt.ylabel('Gastos (R$)')
-    plt.xticks(range(1, 13), calendar.month_abbr[1:])  # Usar abreviações de meses para rótulos do eixo x
-    plt.legend()
+    data_conta = entry_data.get()
+    valor_conta = caixa_valor.get()  # Corrigido de entry_valor para caixa_valor
 
-    # Atualizar gráfico na interface
-    canvas = FigureCanvasTkAgg(plt.gcf(), master=terceira_janela)
-    canvas_widget = canvas.get_tk_widget()
-    canvas_widget.pack()
+    if not validar_data(data_conta):
+        messagebox.showinfo("Erro", "Formato de data inválido. Use DD/MM/AAAA.")
+        return
 
-    # Exibir a projeção
-    resultado.config(text=f"Gastos Projetados: R$ {gastos_projetados[-1]:.2f} para {mes_ano_proj}")
+    try:
+        # Criar o DataFrame se o arquivo CSV existir
+        if os.path.exists('historico_contas.csv'):
+            df = pd.read_csv('historico_contas.csv')
+        else:
+            df = pd.DataFrame(columns=['Data', 'Valor'])
 
-# ...
+        # Adicionar nova entrada ao DataFrame
+        nova_entrada = pd.DataFrame({'Data': [data_conta], 'Valor': [float(valor_conta)]})
+        df = pd.concat([df, nova_entrada], ignore_index=True)
 
-def atualizar_grafico():
-    # Criar gráfico de evolução mensal
-    meses_anos, gastos = zip(*[(mes_ano, gasto) for _, mes_ano, gasto in historico_gastos])
+        # Salvar o DataFrame de volta ao arquivo CSV
+        df.to_csv('historico_contas.csv', mode='a', header=not os.path.exists('historico_contas.csv'), index=False)
 
-    # Converter todas as datas para objetos datetime
-    datas = [datetime.strptime(mes_ano, "%Y-%m") if "-" in mes_ano else datetime.strptime(mes_ano, "%d/%m/%Y %H:%M:%S") for mes_ano in meses_anos]
+        messagebox.showinfo("Sucesso", "Dados salvos com sucesso.")
+    except Exception as e:
+        messagebox.showinfo("Erro", f"Erro ao salvar dados: {str(e)}")
 
-    # Ordenar os dados pela ordem dos meses
-    dados_ordenados = sorted(zip(datas, meses_anos, gastos), key=lambda x: x[0])
+# Função para exibir a tabela
+def exibir_tabela():
+    # Verificar se o arquivo CSV existe
+    if not os.path.exists('historico_contas.csv'):
+        messagebox.showinfo("Aviso", "Nenhum dado encontrado.")
+        return
 
-    # Extrair os dados ordenados
-    datas, meses_anos, gastos = zip(*dados_ordenados)
+    try:
+        # Carregar os dados do arquivo CSV usando Pandas
+        df = pd.read_csv('historico_contas.csv', names=['Data', 'Valor'], header=None)
 
-    # Plotar o gráfico ordenado
-    plt.plot(meses_anos, gastos, marker='o', linestyle='-', color='b')
-    plt.title('Evolução Mensal dos Gastos')
-    plt.xlabel('Mês/Ano')
-    plt.ylabel('Gastos (R$)')
-    plt.xticks(rotation=45, ha='right')  # Rotacionar rótulos do eixo x para melhor visualização
+        # Verificar se o DataFrame está vazio
+        if df.empty:
+            messagebox.showinfo("Aviso", "Nenhum dado encontrado.")
+            return
 
-    # Adicionar rótulos de data aos pontos no gráfico
-    for i, (_, mes_ano, gasto) in enumerate(historico_gastos):
-        plt.text(mes_ano, gasto, f'  {gasto:.2f}', rotation=45, ha='right', va='bottom')
+        # Tentar converter a coluna 'Data' para o formato de data
+        df['Data'] = pd.to_datetime(df['Data'], errors='coerce', format='%d/%m/%Y')
 
-    # Atualizar gráfico na interface
-    canvas.draw()
+        # Filtrar linhas onde a conversão falhou (Valores incorretos ou 'Data' no cabeçalho)
+        df = df.dropna(subset=['Data'])
 
-# Criar a janela principal
-janela = tk.Tk()
-janela.title("Controle de Gastos Energéticos")
+        # Ordenar os dados por mês e ano
+        df = df.sort_values(by='Data')
 
-# Criar widgets
-tk.Label(janela, text="Consumo (kWh):").pack()
-entry_consumo = tk.Entry(janela)
-entry_consumo.pack()
+        # Criar a tabela no frame2
+        tabela = ttk.Treeview(frame2, columns=['Data', 'Valor'], show='headings')
 
-tk.Label(janela, text="Tarifa (R$/kWh):").pack()
-entry_tarifa = tk.Entry(janela)
-entry_tarifa.pack()
+        # Definir cabeçalhos
+        tabela.heading('Data', text='Data')
+        tabela.heading('Valor', text='Valor')
 
-# Adicionar menus suspensos para seleção de mês e ano
-frame_data = tk.Frame(janela)
-frame_data.pack()
+        # Adicionar os dados à tabela
+        for index, row in df.iterrows():
+            tabela.insert("", "end", values=(row['Data'].strftime('%d/%m/%Y'), row['Valor']))
 
-tk.Label(frame_data, text="Selecione o Mês:").pack(side=tk.LEFT)
-mes_var = tk.StringVar(janela)
-meses = [cal.month_name[i] for i in range(1, 13)]
-mes_menu = ttk.Combobox(frame_data, textvariable=mes_var, values=meses)
-mes_menu.pack(side=tk.LEFT)
-mes_menu.set(cal.month_name[datetime.now().month])  # Definir o mês atual como padrão
+        # Adicionar a tabela ao frame
+        tabela.pack(padx=10, pady=10)
 
-tk.Label(frame_data, text="   Selecione o Ano:").pack(side=tk.LEFT)  # Adicionei alguns espaços para separar os menus
-ano_var = tk.StringVar(janela)
-anos = [str(i) for i in range(datetime.now().year, datetime.now().year - 10, -1)]  # Anos recentes
-ano_menu = ttk.Combobox(frame_data, textvariable=ano_var, values=anos)
-ano_menu.pack(side=tk.LEFT)
-ano_menu.set(str(datetime.now().year))  # Definir o ano atual como padrão
+        # Adicionar botões para excluir e alterar dados
+        botao_excluir = tk.Button(frame2, text='Excluir Selecionado', command=lambda: excluir_dado(tabela, df))
+        botao_excluir.pack(pady=10)
 
-btn_calcular = tk.Button(janela, text="Calcular", command=calcular_gastos)
-btn_calcular.pack()
+        botao_alterar = tk.Button(frame2, text='Alterar Selecionado', command=lambda: alterar_dado(tabela, df))
+        botao_alterar.pack(pady=10)
 
-resultado = tk.Label(janela, text="")
-resultado.pack()
+    except Exception as e:
+        messagebox.showinfo("Erro", f"Erro ao exibir tabela: {str(e)}")
+
+# Função para excluir um dado da tabela
+def excluir_dado(tabela, df):
+    # Obter item selecionado na tabela
+    item_selecionado = tabela.selection()
+    if not item_selecionado:
+        messagebox.showinfo("Aviso", "Nenhum item selecionado.")
+        return
+
+    # Obter índice do item selecionado
+    index = tabela.index(item_selecionado)
+
+    # Remover a linha correspondente no DataFrame
+    df = df.drop(index, axis=0)
+
+    # Salvar o DataFrame atualizado de volta ao arquivo CSV
+    df.to_csv('historico_contas.csv', index=False)
+
+    # Remover item da tabela
+    tabela.delete(item_selecionado)
+
+    messagebox.showinfo("Sucesso", "Item excluído com sucesso.")
+
+# Função para alterar um dado na tabela
+def alterar_dado(tabela, df):
+    # Obter item selecionado na tabela
+    item_selecionado = tabela.selection()
+    if not item_selecionado:
+        messagebox.showinfo("Aviso", "Nenhum item selecionado.")
+        return
+
+    # Obter índice do item selecionado
+    index = tabela.index(item_selecionado)
+
+    # Abrir janela para edição
+    janela_edicao = tk.Toplevel(root)
+
+    # Adicionar campos para edição
+    tk.Label(janela_edicao, text="Nova Data:").grid(row=0, column=0)
+    nova_data_entry = tk.Entry(janela_edicao)
+    nova_data_entry.grid(row=0, column=1)
+
+    tk.Label(janela_edicao, text="Novo Valor:").grid(row=1, column=0)
+    novo_valor_entry = tk.Entry(janela_edicao)
+    novo_valor_entry.grid(row=1, column=1)
+
+    # Função para aplicar as alterações
+    def aplicar_alteracoes():
+        # Obter os novos valores
+        nova_data = nova_data_entry.get()
+        novo_valor = novo_valor_entry.get()
+
+        # Validar a data
+        if not validar_data(nova_data):
+            messagebox.showinfo("Erro", "Formato de data inválido. Use DD/MM/AAAA.")
+            return
+
+        # Atualizar os valores no DataFrame
+        df.at[index, 'Data'] = nova_data
+        df.at[index, 'Valor'] = float(novo_valor)
+
+        # Atualizar a tabela
+        tabela.item(item_selecionado, values=(nova_data, novo_valor))
+
+        # Salvar o DataFrame atualizado de volta ao arquivo CSV
+        df.to_csv('historico_contas.csv', index=False)
+
+        # Fechar a janela de edição
+        janela_edicao.destroy()
+
+        messagebox.showinfo("Sucesso", "Item alterado com sucesso.")
+
+    # Adicionar botão para aplicar alterações
+    botao_aplicar = tk.Button(janela_edicao, text='Aplicar Alterações', command=aplicar_alteracoes)
+    botao_aplicar.grid(row=2, column=0, columnspan=2)
+    # Limpar a tabela
+    tabela.delete(*tabela.get_children())
+
+    # Adicionar os dados atualizados à tabela
+    for index, row in df.iterrows():
+        tabela.insert("", "end", values=(row['Data'].strftime('%d/%m/%Y'), row['Valor']))
+
+# root window
+root = tk.Tk()
+root.iconbitmap('Images/imagem.jpeg')
+
+# Adquirir tamanho da tela
+screen_width = root.winfo_screenwidth()
+screen_height = root.winfo_screenheight()
+
+width = screen_width - 650
+height = screen_height - 250
+root.geometry(f"{width}x{height}")
+
+root.configure(bg="white")
+root.title('Controle de Gastos Energéticos')
+
+# Criando um notebook (Widget para manusear diferentes abas)
+notebook = ttk.Notebook(root, height=screen_height, width=screen_width)
+notebook.pack(pady=0, expand=False)
+
+# Criando as abas
+frame1 = ttk.Frame(notebook, width=800, height=600)
+frame2 = ttk.Frame(notebook, width=800, height=600)
+frame3 = ttk.Frame(notebook, width=800, height=600)
+frame4 = ttk.Frame(notebook, width=800, height=600)
+
+frame1.pack(fill='both', expand=True)  # Página Inicial
+frame2.pack(fill='both', expand=True)  # Tabela de Gastos Passados
+frame3.pack(fill='both', expand=True)  # Visualizar Gastos Passados
+frame4.pack(fill='both', expand=True)  # Alertas Gastos Futuros
+
+# add frames to notebook
+notebook.add(frame1, text='Página Inicial')
+notebook.add(frame2, text='Tabela de Gastos Passados')
+notebook.add(frame3, text='Visualizar Gastos Passados')
+notebook.add(frame4, text='Alertas Gastos Futuros')
+
+# Aba Página Inicial
+tk.Label(frame1, text="Página Inicial").pack(pady=20)
+
+# Campos de entrada
+tk.Label(frame1, text='Data:').pack(pady=5)
+entry_data = tk.Entry(frame1, width=15)
+entry_data.pack(pady=5)
+
+tk.Label(frame1, text='Valor:').pack(pady=5)
+caixa_valor = tk.Entry(frame1, width=15)
+caixa_valor.pack(pady=5)
+
+#Botão para salvar dados
+# Supondo que você tenha um botão chamado "botao_salvar" na sua interface gráfica
+botao_salvar = tk.Button(frame1, text="Salvar Histórico", command=salvar_historico)
+botao_salvar.pack(pady=10)
 
 
-# Botão para abrir a segunda janela
-btn_abrir_segunda_janela = tk.Button(janela, text="Ver Gastos Mensais", command=abrir_segunda_janela)
-btn_abrir_segunda_janela.pack()
+# Aba Tabela de Gastos Passados
+tk.Label(frame2, text="Tabela de Gastos Passados").pack(pady=20)
 
-# Configurações adicionais para o gráfico
-fig, ax = plt.subplots()
-canvas = FigureCanvasTkAgg(fig, master=janela)
-canvas_widget = canvas.get_tk_widget()
-canvas_widget.pack()
+btn_exibir_tabela = tk.Button(frame2, text="Exibir Tabela", command=exibir_tabela)
+btn_exibir_tabela.pack(pady=10)
 
-# Botão para abrir a terceira janela
-btn_abrir_terceira_janela = tk.Button(janela, text="Projeção de Gastos Mensais", command=abrir_terceira_janela)
-btn_abrir_terceira_janela.pack()
+# Aba Visualizar Gastos Passados
+tk.Label(frame3, text="Visualizar Gastos Passados").pack(pady=20)
 
-# Iniciar o loop de eventos
-janela.mainloop()
+# Aba Alertas Gastos Futuros
+tk.Label(frame4, text="Alertas Gastos Futuros").pack(pady=20)
+
+root.mainloop()
