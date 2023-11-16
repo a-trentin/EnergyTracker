@@ -42,3 +42,12 @@ A motivação do aplicativo é otimizar o consumo das residências. A curto praz
 
 4. Execute o seguinte comando para iniciar o aplicativo:
 
+### Instalação de dependências para compilação
+No arquivo requirements.txt foi incluído as bibliotecas necessárias para executar o script do arquivo, para instalá-las basta fazer o seguinte procedimento:
+
++ Passo 1:
+Ir até o prompt de comando com o atalho Windows+R e digitar "cmd", após isso apertar a tecla enter para abrir o terminal do Windows.
++ Passo 2:
+Navegar por meio do comando cd até o diretório onde está o requirements.txt no seu computador.
++ Passo 3:
+Por fim instalar todas as dependências com o comando "pip install -r requirements.txt".
