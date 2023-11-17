@@ -435,7 +435,7 @@ tk.Label(frame4, text="Potência do Painel (kWp):").pack(pady=5)
 entry_potencia_painel = tk.Entry(frame4, width=15)
 entry_potencia_painel.pack(pady=5)
 
-tk.Label(frame4, text="Custo do Painel (R$/Wp):").pack(pady=5)
+tk.Label(frame4, text="Custo do Painel (R$/kWp):").pack(pady=5)
 entry_custo_painel = tk.Entry(frame4, width=15)
 entry_custo_painel.pack(pady=5)
 
