@@ -14,6 +14,10 @@ def validar_data(data):
 
 # Função para visualizar os gastos passados em um gráfico
 def visualizar_gastos_passados():
+    # Limpar qualquer widget existente no frame3
+    for widget in frame3.winfo_children():
+        widget.destroy()
+
     # Verificar se o arquivo CSV existe
     if not os.path.exists('historico_contas.csv'):
         messagebox.showinfo("Aviso", "Nenhum dado encontrado.")
@@ -28,8 +32,8 @@ def visualizar_gastos_passados():
             messagebox.showinfo("Aviso", "Nenhum dado encontrado.")
             return
 
-        # Ajustar a leitura da coluna 'Data' para considerar o formato 'DD/MM/YYYY'
-        df['Data'] = pd.to_datetime(df['Data'], errors='coerce', format='%d/%m/%Y')
+        # Ajustar a leitura da coluna 'Data' para considerar o formato 'YYYY-MM-DD'
+        df['Data'] = pd.to_datetime(df['Data'], errors='coerce', format='%Y-%m-%d')
 
         # Filtrar linhas onde a conversão falhou (Valores incorretos ou 'Data' no cabeçalho)
         df = df.dropna(subset=['Data'])
@@ -40,27 +44,25 @@ def visualizar_gastos_passados():
         # Agrupar por mês e ano
         df_agrupado = df.groupby(df['Data'].dt.to_period("M")).agg({'Valor': 'sum', 'kWh': 'sum'}).reset_index()
 
-        # Criar gráfico
+        # Criar gráfico com duas linhas
         fig, ax1 = plt.subplots(figsize=(10, 6))
 
-        # Plotar Valor
-        ax1.plot(df_agrupado['Data'].astype(str), df_agrupado['Valor'], marker='o', color='b', label='Valor')
+        # Plotar linha de Valor
+        ax1.plot(df_agrupado['Data'].dt.strftime('%m-%Y'), df_agrupado['Valor'], marker='o', color='b', label='Reais')
         ax1.set_xlabel('Mês e Ano')
         ax1.set_ylabel('Valor Total', color='b')
         ax1.tick_params('y', colors='b')
 
         # Criar segundo eixo y para kWh
         ax2 = ax1.twinx()
-        ax2.plot(df_agrupado['Data'].astype(str), df_agrupado['kWh'], marker='s', color='r', label='kWh')
+        ax2.plot(df_agrupado['Data'].dt.strftime('%m-%Y'), df_agrupado['kWh'], marker='s', color='r', label='kWh')
         ax2.set_ylabel('kWh Total', color='r')
         ax2.tick_params('y', colors='r')
 
         # Configurar rótulos e título
-        ax1.set_title('Gastos Mensais')
-
-        # Ajustar rótulos do eixo x para melhor legibilidade
-        ax1.set_xticks(df_agrupado['Data'].astype(str))
-        ax1.set_xticklabels(df_agrupado['Data'].astype(str), rotation=45, ha='right')
+        ax1.set_title('Evolução em Reais e Consumo kWh')
+        ax1.set_xticks(df_agrupado['Data'].dt.strftime('%m-%Y'))
+        ax1.set_xticklabels(df_agrupado['Data'].dt.strftime('%m-%Y'), rotation=45, ha='right')
 
         # Adicionar grade
         ax1.grid(True)
@@ -71,7 +73,11 @@ def visualizar_gastos_passados():
 
         # Exibir gráfico
         plt.tight_layout()
-        plt.show()
+
+        # Criar objeto FigureCanvasTkAgg e adicionar ao frame3
+        canvas = FigureCanvasTkAgg(fig, master=frame3)
+        canvas.draw()
+        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
     except Exception as e:
         messagebox.showinfo("Erro", f"Erro ao visualizar gastos passados: {str(e)}")
@@ -95,7 +101,7 @@ def salvar_historico():
 
         # Adicionar nova entrada ao DataFrame apenas se todos os valores estiverem presentes
         if data_conta and valor_conta and kWh_conta:
-            nova_entrada = pd.DataFrame({'Data': [pd.to_datetime(data_conta, format='%d/%m/%Y', errors='coerce').strftime('%d/%m/%Y')],
+            nova_entrada = pd.DataFrame({'Data': [pd.to_datetime(data_conta, format='%d/%m/%Y', errors='coerce').strftime('%Y-%m-%d')],
                                           'Valor': [float(valor_conta)],
                                           'kWh': [float(kWh_conta)]})
             df = pd.concat([df, nova_entrada], ignore_index=True)
@@ -130,8 +136,8 @@ def exibir_tabela():
             messagebox.showinfo("Aviso", "Nenhum dado encontrado.")
             return
 
-        # Ajustar a leitura da coluna 'Data' para considerar o formato 'DD/MM/YYYY'
-        df['Data'] = pd.to_datetime(df['Data'], errors='coerce', format='%d/%m/%Y')
+        # Ajustar a leitura da coluna 'Data' para considerar o formato 'YYYY-MM-DD'
+        df['Data'] = pd.to_datetime(df['Data'], errors='coerce', format='%Y-%m-%d')
 
         # Filtrar linhas onde a conversão falhou (Valores incorretos ou 'Data' no cabeçalho)
         df = df.dropna(subset=['Data'])
@@ -139,8 +145,18 @@ def exibir_tabela():
         # Ordenar os dados por data
         df = df.sort_values(by='Data')
 
+        # Destruir os widgets existentes no frame2, exceto os primeiros (índices 2 e superiores)
+        for widget in frame2.winfo_children()[2:]:
+            widget.destroy()
+
         # Criar a tabela no frame2
         tabela = ttk.Treeview(frame2, columns=['Data', 'Valor', 'kWh'], show='headings')
+
+        botao_excluir = tk.Button(frame2, text='Excluir Selecionado', command=lambda: excluir_dado(tabela, df))
+        botao_excluir.pack(pady=10)
+
+        botao_alterar = tk.Button(frame2, text='Alterar Selecionado', command=lambda: alterar_dado(tabela, df))
+        botao_alterar.pack(pady=10)     
 
         # Definir cabeçalhos
         tabela.heading('Data', text='Data')
@@ -154,12 +170,13 @@ def exibir_tabela():
         # Adicionar a tabela ao frame
         tabela.pack(padx=10, pady=10)
 
-        # Adicionar botões para excluir e alterar dados
-        botao_excluir = tk.Button(frame2, text='Excluir Selecionado', command=lambda: excluir_dado(tabela, df))
-        botao_excluir.pack(pady=10)
+        # Adicionar botões para excluir e alterar dados, se ainda não existirem
+        if not any(isinstance(widget, tk.Button) for widget in frame2.winfo_children()):
+            botao_excluir = tk.Button(frame2, text='Excluir Selecionado', command=lambda: excluir_dado(tabela, df))
+            botao_excluir.pack(pady=10)
 
-        botao_alterar = tk.Button(frame2, text='Alterar Selecionado', command=lambda: alterar_dado(tabela, df))
-        botao_alterar.pack(pady=10)
+            botao_alterar = tk.Button(frame2, text='Alterar Selecionado', command=lambda: alterar_dado(tabela, df))
+            botao_alterar.pack(pady=10)
 
     except Exception as e:
         messagebox.showinfo("Erro", f"Erro ao exibir tabela: {str(e)}")
@@ -255,24 +272,75 @@ def alterar_dado(tabela, df):
 # Função para calcular a autonomia de painéis solares e o retorno financeiro
 def calcular_autonomia_paineis_solares():
     try:
-        # Obter dados de consumo e custo da energia elétrica
-        consumo_mensal = float(entry_consumo.get())
-        custo_kwh = float(entry_custo_kwh.get())
+        # Verificar se o arquivo CSV existe
+        if not os.path.exists('historico_contas.csv'):
+            messagebox.showinfo("Aviso", "Nenhum dado encontrado.")
+            return
+
+        # Carregar os dados do arquivo CSV usando Pandas
+        df = pd.read_csv('historico_contas.csv', parse_dates=['Data'], dayfirst=True)
+
+        # Verificar se o DataFrame está vazio
+        if df.empty:
+            messagebox.showinfo("Aviso", "Nenhum dado encontrado no arquivo CSV.")
+            return
+
+        # Converter as colunas 'Valor' e 'kWh' para números
+        df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce')
+        df['kWh'] = pd.to_numeric(df['kWh'], errors='coerce')
+
+        # Verificar se há valores nulos na coluna 'kWh'
+        if df['kWh'].isnull().any():
+            messagebox.showinfo("Aviso", "Existem valores nulos ou não numéricos na coluna 'kWh'.")
+            return
+
+        # Calcular a média do consumo em kWh
+        media_consumo_kWh = df['kWh'].mean()
+
+        # Calcular o consumo anual
+        consumo_anual = media_consumo_kWh * 12
 
         # Obter dados de geração dos painéis solares
-        producao_mensal_por_painel = float(entry_producao_painel.get())
-        custo_painel = float(entry_custo_painel.get())
+        taxa_irradiacao_noct = 800  # Considerando 800 kWh/m²/ano
+        fator_correcao_F = 0.85  # Fator de correção
+
+        # Calcular a potência dos painéis solares
+        potencia_paineis = (media_consumo_kWh * 12) / (taxa_irradiacao_noct * fator_correcao_F)
 
         # Calcular a quantidade de painéis solares necessários
-        paineis_necessarios = consumo_mensal / producao_mensal_por_painel
+        quantidade_paineis = potencia_paineis / float(entry_potencia_painel.get())
 
-        # Calcular o retorno financeiro em anos
-        retorno_financeiro_anos = custo_painel * paineis_necessarios / (consumo_mensal * custo_kwh)
+        # Calcular o preço médio por kWh usando a base de dados
+        total_valor = df['Valor'].sum()
+        total_kWh = df['kWh'].sum()
 
-        messagebox.showinfo("Resultado", f"São necessários {round(paineis_necessarios, 2)} painéis solares para suprir o consumo. \n\n"
-                                         f"O retorno financeiro estimado é em aproximadamente {round(retorno_financeiro_anos, 2)} anos.")
+        if total_kWh == 0:
+            messagebox.showinfo("Aviso", "Não é possível calcular o preço médio por kWh. Total de kWh é zero.")
+            return
+
+        preco_medio_kWh = total_valor / total_kWh
+
+        # Calcular os custos envolvidos
+        custo_painel = float(entry_custo_painel.get())
+        custo_total = quantidade_paineis * custo_painel
+
+        # Calcular a economia anual esperada
+        economia_anual_esperada = media_consumo_kWh * 12 * preco_medio_kWh
+
+        # Calcular o tempo de retorno financeiro
+        tempo_retorno_financeiro = custo_total / economia_anual_esperada
+
+        messagebox.showinfo("Resultado", f"A média de consumo mensal em kWh é {round(media_consumo_kWh, 2)}.\n"
+                                         f"O consumo anual estimado é {round(consumo_anual, 2)} kWh.\n\n"
+                                         f"A potência dos painéis solares necessários é {round(potencia_paineis, 2)} Wp.\n"
+                                         f"São necessários aproximadamente {round(quantidade_paineis, 2)} painéis solares.\n\n"
+                                         f"O custo total estimado é R${round(custo_total, 2)}.\n"
+                                         f"A economia anual esperada é R${round(economia_anual_esperada, 2)}.\n"
+                                         f"O tempo de retorno financeiro é aproximadamente {round(tempo_retorno_financeiro, 2)} anos.")
+
     except Exception as e:
         messagebox.showinfo("Erro", f"Erro ao calcular autonomia de painéis solares: {str(e)}")
+
 
 # Criar uma instância do ttkbootstrap Style
 style = Style()
@@ -310,7 +378,7 @@ frame4.pack(fill='both', expand=True)  # Area Verde
 notebook.add(frame1, text='Página Inicial')
 notebook.add(frame2, text='Tabela de Gastos Passados')
 notebook.add(frame3, text='Visualizar Gastos Passados')
-notebook.add(frame4, text='Area Verde')
+notebook.add(frame4, text='Planejamento Fotovoltáico')
 
 # Adicione imagens às abas
 img1 = tk.PhotoImage(file="Images/casa-com-certificado-energetico.png")
@@ -331,7 +399,7 @@ caixa_valor = tk.Entry(frame1, width=15)
 caixa_valor.pack(pady=5)
 
 tk.Label(frame1, text='kWh:').pack(pady=5)
-caixa_kWh = tk.Entry(frame1, width=15)  # Certifique-se de criar a variável caixa_kWh
+caixa_kWh = tk.Entry(frame1, width=15)  
 caixa_kWh.pack(pady=5)
 
 # Botão para salvar dados
@@ -339,10 +407,18 @@ botao_salvar = tk.Button(frame1, text="Salvar Conta", command=salvar_historico)
 botao_salvar.pack(pady=10)
 
 # Aba Tabela de Gastos Passados
-tk.Label(frame2, image=img2, compound="top", text="Tabela de Gastos Passados").pack(pady=20)
+tk.Label(frame2, text="Tabela de Gastos Passados").pack(pady=20)
 
 btn_exibir_tabela = tk.Button(frame2, text="Exibir Tabela", command=exibir_tabela)
 btn_exibir_tabela.pack(pady=10)
+
+# Botão para excluir os dados
+botao_excluir = tk.Button(frame2, text='Excluir Selecionado', command=lambda: excluir_dado(tabela, df))
+botao_excluir.pack(pady=10)
+
+# Botão para alterar os dados
+botao_alterar = tk.Button(frame2, text='Alterar Selecionado', command=lambda: alterar_dado(tabela, df))
+botao_alterar.pack(pady=10)
 
 # Aba Visualizar Gastos Passados
 tk.Label(frame3, text="Visualizar Gastos Passados").pack(pady=20)
@@ -352,27 +428,19 @@ btn_visualizar_grafico = tk.Button(frame3, text="Visualizar Gastos Passados", co
 btn_visualizar_grafico.pack(pady=10)
 
 # Aba Area Verde
-tk.Label(frame4, image=img4, compound="top", text="Area Verde").pack(pady=20)
+tk.Label(frame4, text="Area Verde", image=img4, compound="top").pack(pady=20)
 
-# Adicionar widgets para entrada de dados
-tk.Label(frame4, text="Consumo Mensal (kWh):").pack(pady=5)
-entry_consumo = tk.Entry(frame4, width=15)
-entry_consumo.pack(pady=5)
+# Adicionar widgets para entrada de dados na Aba 4
+tk.Label(frame4, text="Potência do Painel (kWp):").pack(pady=5)
+entry_potencia_painel = tk.Entry(frame4, width=15)
+entry_potencia_painel.pack(pady=5)
 
-tk.Label(frame4, text="Custo por kWh (R$):").pack(pady=5)
-entry_custo_kwh = tk.Entry(frame4, width=15)
-entry_custo_kwh.pack(pady=5)
-
-tk.Label(frame4, text="Produção Mensal por Painel (kWh):").pack(pady=5)
-entry_producao_painel = tk.Entry(frame4, width=15)
-entry_producao_painel.pack(pady=5)
-
-tk.Label(frame4, text="Custo por Painel Solar (R$):").pack(pady=5)
+tk.Label(frame4, text="Custo do Painel (R$/Wp):").pack(pady=5)
 entry_custo_painel = tk.Entry(frame4, width=15)
 entry_custo_painel.pack(pady=5)
 
 # Botão para calcular autonomia de painéis solares
-botao_calcular_autonomia = tk.Button(frame4, text='Calcular Autonomia', command=calcular_autonomia_paineis_solares)
-botao_calcular_autonomia.pack(padx=10, pady=10)
+botao_calcular_autonomia_paineis_solares = tk.Button(frame4, text='Calcular Autonomia de Painéis Solares', command=calcular_autonomia_paineis_solares)
+botao_calcular_autonomia_paineis_solares.pack(padx=10, pady=10)
 
 root.mainloop()
