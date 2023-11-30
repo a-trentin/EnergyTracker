@@ -93,15 +93,16 @@ class Gastos:
 
     @staticmethod
     def salvar_historico(entry_data, caixa_valor, caixa_kWh):
-        data_conta = entry_data.get()
-        valor_conta = caixa_valor.get()
-        kWh_conta = caixa_kWh.get()
-
-        if not validar_data(data_conta):
-            messagebox.showinfo("Erro", "Formato de data inválido. Use DD/MM/AAAA.")
-            return
-
         try:
+            # Obtendo os valores dos widgets de entrada
+            data_conta = entry_data.get()
+            valor_conta = caixa_valor.get()
+            kWh_conta = caixa_kWh.get()
+
+            if not Gastos.validar_data(data_conta):
+                messagebox.showinfo("Erro", "Formato de data inválido. Use DD/MM/AAAA.")
+                return
+
             # Criar o DataFrame se o arquivo CSV existir
             if os.path.exists('historico_contas.csv'):
                 df = pd.read_csv('historico_contas.csv')
@@ -121,10 +122,10 @@ class Gastos:
             messagebox.showinfo("Sucesso", "Dados salvos com sucesso.")
 
             # Atualizar a tabela
-            exibir_tabela()
+            Gastos.exibir_tabela(frame2, tabela)
 
             # Atualizar o gráfico
-            visualizar_gastos_passados()
+            Gastos.visualizar_gastos_passados(frame3)
 
         except Exception as e:
             messagebox.showinfo("Erro", f"Erro ao salvar dados: {str(e)}")
@@ -299,6 +300,12 @@ class Gastos:
 
         messagebox.showinfo("Sucesso", "Item excluído com sucesso.")
 
+    # Atualizar a tabela
+        Gastos.exibir_tabela(frame2, tabela)
+
+        # Atualizar o gráfico
+        Gastos.visualizar_gastos_passados(frame3)
+
     @staticmethod
     def alterar_dado(tabela, df):
         # Obter item selecionado na tabela
@@ -330,40 +337,50 @@ class Gastos:
         nova_data_entry.insert(0, df.at[index, 'Data'].strftime('%d/%m/%Y'))
         novo_valor_entry.insert(0, df.at[index, 'Valor'])
 
+
+
     @staticmethod
     def aplicar_alteracoes(janela_edicao, nova_data_entry, novo_valor_entry, tabela, df, item_selecionado, index):
-        # Obter os novos valores
-        nova_data = nova_data_entry.get()
-        novo_valor = novo_valor_entry.get()
+            # Obter os novos valores
+            nova_data = nova_data_entry.get()
+            novo_valor = novo_valor_entry.get()
 
-        # Validar a data
-        if not Gastos.validar_data(nova_data):
-            messagebox.showinfo("Erro", "Formato de data inválido. Use DD/MM/AAAA.")
-            return
+            # Validar a data
+            if not Gastos.validar_data(nova_data):
+                messagebox.showinfo("Erro", "Formato de data inválido. Use DD/MM/AAAA.")
+                return
 
-        # Converter a nova data para datetime
-        nova_data = pd.to_datetime(nova_data, format='%d/%m/%Y', errors='coerce')
+            # Converter a nova data para datetime
+            nova_data = pd.to_datetime(nova_data, format='%d/%m/%Y', errors='coerce')
 
-        # Verificar se a conversão falhou
-        if pd.isnull(nova_data):
-            messagebox.showinfo("Erro", "Data inválida.")
-            return
+            # Verificar se a conversão falhou
+            if pd.isnull(nova_data):
+                messagebox.showinfo("Erro", "Data inválida.")
+                return
 
-        # Atualizar os valores no DataFrame
-        df.at[index, 'Data'] = nova_data
-        df.at[index, 'Valor'] = float(novo_valor)
+            # Atualizar os valores no DataFrame
+            df.at[index, 'Data'] = nova_data
+            df.at[index, 'Valor'] = float(novo_valor)
+
+            # Atualizar a tabela
+            tabela.item(item_selecionado, values=(nova_data.strftime('%d/%m/%Y'), novo_valor))
+
+            # Salvar o DataFrame atualizado de volta ao arquivo CSV
+            df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%Y', errors='coerce')
+            df.to_csv('historico_contas.csv', index=False)
+
+            # Fechar a janela de edição
+            janela_edicao.destroy()
+
+            messagebox.showinfo("Sucesso", "Item alterado com sucesso.")
+
 
         # Atualizar a tabela
-        tabela.item(item_selecionado, values=(nova_data.strftime('%d/%m/%Y'), novo_valor))
+            Gastos.exibir_tabela(frame2, tabela)
 
-        # Salvar o DataFrame atualizado de volta ao arquivo CSV
-        df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%Y', errors='coerce')
-        df.to_csv('historico_contas.csv', index=False)
+            # Atualizar o gráfico
+            Gastos.visualizar_gastos_passados(frame3)
 
-        # Fechar a janela de edição
-        janela_edicao.destroy()
-
-        messagebox.showinfo("Sucesso", "Item alterado com sucesso.")
 
 class EnergiaSolar:
     @staticmethod
@@ -438,7 +455,6 @@ class EnergiaSolar:
         except Exception as e:
             messagebox.showinfo("Erro", f"Erro ao calcular autonomia de painéis solares: {str(e)}")
 
-# Criar uma instância do ttkbootstrap Style
 style = Style()
 
 # Criar a janela principal
@@ -477,8 +493,6 @@ notebook.add(frame4, text='Planejamento Fotovoltáico')
 
 # Adicionar imagens às abas
 img1 = tk.PhotoImage(file="Images/casa-com-certificado-energetico.png")
-img2 = tk.PhotoImage(file="Images/5415790 (Telefone).png")
-img3 = tk.PhotoImage(file="Images/5415790 (Telefone).png")
 img4 = tk.PhotoImage(file="Images/5415790 (Telefone).png")
 
 label1 = tk.Label(frame1, image=img1, compound="top", text="Página Inicial").pack(pady=20)
@@ -495,7 +509,7 @@ caixa_kWh = tk.Entry(frame1, width=15)
 tk.Label(frame1, text='kWh:').pack(pady=5)
 caixa_kWh.pack(pady=5)
 
-botao_salvar = tk.Button(frame1, text="Salvar Conta", command=lambda: Gastos.salvar_historico(entry_data.get(), caixa_valor.get(), caixa_kWh.get()))
+botao_salvar = tk.Button(frame1, text="Salvar Conta", command=lambda: Gastos.salvar_historico(entry_data, caixa_valor, caixa_kWh))
 botao_salvar.pack(pady=10)
 
 tk.Label(frame2, text="Tabela de Gastos Passados").pack(pady=20)
