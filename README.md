@@ -41,6 +41,20 @@ A motivação do aplicativo é otimizar o consumo das residências. A curto praz
 
 4. Execute o seguinte comando para iniciar o aplicativo:
 
+### Telas do Aplicativo
+
+![](Images/tela1.jpg "tela1")
+
+![](Images/tela2.jpg "tela2")
+
+![](Images/tela2_tabela.jpg "tela2_tabela")
+
+![](Images/tela3.jpg "tela3")
+
+![](Images/tela3_grafico.jpg "tela3_grafico")
+
+![](Images/tela4.jpg "tela4")
+
 ### Instalação de dependências para compilação
 No arquivo requirements.txt foi incluído as bibliotecas necessárias para executar o script do arquivo, para instalá-las basta fazer o seguinte procedimento:
 
