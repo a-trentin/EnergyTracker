@@ -39,21 +39,31 @@ A motivação do aplicativo é otimizar o consumo das residências. A curto praz
 
 3. Abra um terminal de comando ou prompt de comando na pasta do aplicativo.
 
-4. Execute o seguinte comando para iniciar o aplicativo:
+4. Execute o seguinte comando para iniciar o aplicativo: python EnergyTracker.py
 
 ### Telas do Aplicativo
 
-![](Images/tela1.jpg "tela1")
+1. Tela Inicial: onde pode ser adicionado os dados de suas contas passadas
+   
+![](Images/tela1 "tela1")
 
-![](Images/tela2.jpg "tela2")
+2. Segunda Aba: vizualizar a tabela com os dados das contas passadas
+   
+![](Images/tela2 "tela2")
 
-![](Images/tela2_tabela.jpg "tela2_tabela")
 
-![](Images/tela3.jpg "tela3")
+![](Images/tela2_tabela "tela2_tabela")
 
-![](Images/tela3_grafico.jpg "tela3_grafico")
+3. Terceira Aba: vizualizar os dados gráficamente
+   
+![](Images/tela3 "tela3")
 
-![](Images/tela4.jpg "tela4")
+
+![](Images/tela3_grafico "tela3_grafico")
+
+4. Quarta Aba: Projeção de gastos instalação de painéis fotovoltáicos
+   
+![](Images/tela4 "tela4")
 
 ### Instalação de dependências para compilação
 No arquivo requirements.txt foi incluído as bibliotecas necessárias para executar o script do arquivo, para instalá-las basta fazer o seguinte procedimento:
