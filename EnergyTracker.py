@@ -180,11 +180,19 @@ class Expenses:
             # Add the table to frame2
             table.pack(padx=10, pady=10)
 
+             # Add buttons to delete or alter data, if they don't exist yet
+            if not any(isinstance(widget, tk.Button) for widget in frame2.winfo_children()):
+                delete_button = tk.Button(frame2, text='Delete Selected', command=lambda: Expenses.delete_data(table, df))
+                delete_button.pack(pady=10)
+
+                modify_button = tk.Button(frame2, text='Modify Selected', command=lambda: Expenses.modify_data(table, df))
+                modify_button.pack(pady=10)
+
         except Exception as e:
             messagebox.showinfo("Error", f"Error displaying table: {str(e)}")
 
     @staticmethod
-    def delete_data(table, df):
+    def delete_data(table,df):
         # Get the selected item in the table
         selected_item = table.selection()
         if not selected_item:
@@ -242,26 +250,34 @@ class Expenses:
             if not Expenses.validate_data(new_date):
                 messagebox.showinfo("Error", "Invalid date format. Use DD/MM/YYYY.")
                 return
+            
+            # Convert new date to datetime
+            new_date = pd.to_datetime(new_date, format='%d/%m/%Y', errors='coerce')
 
+            # Verification if the date is valid
+            if pd.isnull(new_date):
+                messagebox.showinfo("Error", "Invalid date.")
+                return
+            
             # Update the DataFrame
-            df.at[index, 'Date'] = pd.to_datetime(new_date, format='%d/%m/%Y', errors='coerce')
+            df.at[index, 'Date'] = new_date
             df.at[index, 'Value'] = float(new_value)
 
-            # Save the updated DataFrame back to the CSV file
-            df.to_csv('electricity_bill_history.csv', index=False)
+            # Update the table
+            table.item(selected_item, values=(new_date.strftime('%d/%m/%Y'), new_value))
 
-            messagebox.showinfo("Success", "Item successfully modified.")
+            # Save the updated DataFrame back to the CSV file
+            df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y', errors='coerce')  
+            df.to_csv('electricity_bill_history.csv', index=False)
 
             # Close the window
             edit_window.destroy()
 
-            # Refresh the table and graph
-            Expenses.display_table(frame2, table)
-            visualize_previous_expenses()
+            messagebox.showinfo("Success", "Item successfully modified.")
 
-        # Add a button to apply the changes
-        apply_button = tk.Button(edit_window, text="Apply Changes", command=apply_changes)
-        apply_button.grid(row=2, column=0, columnspan=2)
+             # Adicionar botão para visualizar o gráfico após alterar o dado
+            visualize_button = tk.Button(frame2, text='Show Previous Expenses', command=visualize_previous_expenses)
+            visualize_button.pack(pady=10)
 
     @staticmethod
     def delete_record(table, df):
@@ -498,18 +514,18 @@ save_button.pack(pady=10)
 tk.Label(frame2, text="Table of Past Expenses").pack(pady=20)
 
 # Creating buttons
-show_table_btn = tk.Button(frame2, text="Show Table", command=lambda: Expenses.show_table(frame2, table))
-show_table_btn.pack(pady=10)
+display_table_btn = tk.Button(frame2, text="Show Table", command=lambda: Expenses.display_table(frame2, table))
+display_table_btn.pack(pady=10)
 
 delete_button = tk.Button(frame2, text='Delete Selected', command=lambda: Expenses.delete_data(table, df))
 delete_button.pack(pady=10)
 
-edit_button = tk.Button(frame2, text='Edit Selected', command=lambda: Expenses.edit_data(table, df, frame2, view_Previous_Expenses))
+edit_button = tk.Button(frame2, text='Edit Selected', command=lambda: Expenses.modify_data(table, df, frame2, visualize_previous_expenses))
 edit_button.pack(pady=10)
 
-tk.Label(frame3, text="View Past Expenses").pack(pady=20)
+tk.Label(frame3, text="Visualize Previous Expenses").pack(pady=20)
 
-view_chart_btn = tk.Button(frame3, text="View Past Expenses", command=lambda: Expenses.view_Previous_Expenses(frame3))
+view_chart_btn = tk.Button(frame3, text="View Past Expenses", command=lambda: Expenses.visualize_previous_expenses(frame3))
 view_chart_btn.pack(pady=10)
 
 tk.Label(frame4, text="Green Area", image=img4, compound="top").pack(pady=20)
