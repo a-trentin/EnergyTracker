@@ -17,9 +17,9 @@ class House:
 
 class Expenses:
     @staticmethod
-    def validate_data(data):
+    def validate_date(date):
         date_pattern = re.compile(r'^\d{2}/\d{2}/\d{4}$')
-        return bool(date_pattern.match(data))
+        return bool(date_pattern.match(date))
 
     @staticmethod
     def visualize_previous_expenses(frame3):
@@ -47,7 +47,7 @@ class Expenses:
             # Filter out rows where conversion failed (incorrect values or 'Date' in the header)
             df = df.dropna(subset=['Date'])
 
-            # Sort the data by date
+            # Sort the data by datedit_recordvalidate_date
             df = df.sort_values(by='Date')
 
             # Group by month and year
@@ -99,7 +99,7 @@ class Expenses:
             bill_value = value_box.get()
             kWh_value = kWh_box.get()
 
-            if not Expenses.validate_data(bill_date):
+            if not Expenses.validate_date(bill_date):
                 messagebox.showinfo("Error", "Invalid date format. Use DD/MM/YYYY.")
                 return
 
@@ -162,10 +162,10 @@ class Expenses:
             # Create the table in frame2
             table = ttk.Treeview(frame2, columns=['Date', 'Value', 'kWh'], show='headings')
 
-            delete_button = tk.Button(frame2, text='Delete Selected', command=lambda: Expenses.delete_data(table, df))
+            delete_button = tk.Button(frame2, text='Delete Selected', command=lambda: Expenses.delete_record(table, df))
             delete_button.pack(pady=10)
 
-            modify_button = tk.Button(frame2, text='Modify Selected', command=lambda: Expenses.modify_data(table, df))
+            modify_button = tk.Button(frame2, text='Modify Selected', command=lambda: Expenses.edit_record(table, df))
             modify_button.pack(pady=10)
 
             # Define headers
@@ -182,102 +182,14 @@ class Expenses:
 
              # Add buttons to delete or alter data, if they don't exist yet
             if not any(isinstance(widget, tk.Button) for widget in frame2.winfo_children()):
-                delete_button = tk.Button(frame2, text='Delete Selected', command=lambda: Expenses.delete_data(table, df))
+                delete_button = tk.Button(frame2, text='Delete Selected', command=lambda: Expenses.delete_record(table, df))
                 delete_button.pack(pady=10)
 
-                modify_button = tk.Button(frame2, text='Modify Selected', command=lambda: Expenses.modify_data(table, df))
+                modify_button = tk.Button(frame2, text='Modify Selected', command=lambda: Expenses.edit_record(table, df))
                 modify_button.pack(pady=10)
 
         except Exception as e:
             messagebox.showinfo("Error", f"Error displaying table: {str(e)}")
-
-    @staticmethod
-    def delete_data(table,df):
-        # Get the selected item in the table
-        selected_item = table.selection()
-        if not selected_item:
-            messagebox.showinfo("Notice", "No item selected.")
-            return
-
-        # Get the index of the selected item
-        index = table.index(selected_item)
-
-        # Remove the corresponding row in the DataFrame
-        df = df.drop(index, axis=0)
-
-        # Save the updated DataFrame back to the CSV file
-        df.to_csv('electricity_bill_history.csv', index=False)
-
-        # Remove item from the table
-        table.delete(selected_item)
-
-        messagebox.showinfo("Success", "Item successfully deleted.")
-
-    @staticmethod
-    def modify_data(table, df, frame2, visualize_previous_expenses):
-        # Get the selected item in the table
-        selected_item = table.selection()
-        if not selected_item:
-            messagebox.showinfo("Notice", "No item selected.")
-            return
-
-        # Get the index of the selected item
-        index = table.index(selected_item)
-
-        # Open a window for editing
-        edit_window = tk.Toplevel(root)
-
-        # Add fields for editing
-        tk.Label(edit_window, text="New Date:").grid(row=0, column=0)
-        new_date_entry = tk.Entry(edit_window)
-        new_date_entry.grid(row=0, column=1)
-
-        tk.Label(edit_window, text="New Value:").grid(row=1, column=0)
-        new_value_entry = tk.Entry(edit_window)
-        new_value_entry.grid(row=1, column=1)
-
-        # Populate the edit fields with the current values
-        new_date_entry.insert(0, df.at[index, 'Date'].strftime('%d/%m/%Y'))
-        new_value_entry.insert(0, df.at[index, 'Value'])
-
-        # Function to apply the changes
-        def apply_changes():
-            # Get the new values
-            new_date = new_date_entry.get()
-            new_value = new_value_entry.get()
-
-            # Validate the date
-            if not Expenses.validate_data(new_date):
-                messagebox.showinfo("Error", "Invalid date format. Use DD/MM/YYYY.")
-                return
-            
-            # Convert new date to datetime
-            new_date = pd.to_datetime(new_date, format='%d/%m/%Y', errors='coerce')
-
-            # Verification if the date is valid
-            if pd.isnull(new_date):
-                messagebox.showinfo("Error", "Invalid date.")
-                return
-            
-            # Update the DataFrame
-            df.at[index, 'Date'] = new_date
-            df.at[index, 'Value'] = float(new_value)
-
-            # Update the table
-            table.item(selected_item, values=(new_date.strftime('%d/%m/%Y'), new_value))
-
-            # Save the updated DataFrame back to the CSV file
-            df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y', errors='coerce')  
-            df.to_csv('electricity_bill_history.csv', index=False)
-
-            # Close the window
-            edit_window.destroy()
-
-            messagebox.showinfo("Success", "Item successfully modified.")
-
-             # Adicionar botão para visualizar o gráfico após alterar o dado
-            visualize_button = tk.Button(frame2, text='Show Previous Expenses', command=visualize_previous_expenses)
-            visualize_button.pack(pady=10)
 
     @staticmethod
     def delete_record(table, df):
@@ -331,8 +243,7 @@ class Expenses:
         new_value_entry.grid(row=1, column=1)
     
         tk.Label(edit_window, text="Confirm Changes?").grid(row=2, column=0)
-        confirm_button = tk.Button(edit_window, text='Update Data', 
-                                   command=lambda: Expenses.apply_changes(edit_window, new_date_entry, new_value_entry, table, df, selected_item, index))
+        confirm_button = tk.Button(edit_window, text='Update Data', command=lambda: Expenses.apply_changes(edit_window, new_date_entry, new_value_entry, table, df, selected_item, index))
         confirm_button.grid(row=2, column=1)
     
         # Populate the editing fields with current values
@@ -380,8 +291,15 @@ class Expenses:
         # Update the graph
         Expenses.visualize_previous_expenses(frame3)
     
+    
 
 class SolarEnergy:
+    '''
+        Point of improvement:
+            Generate the Irradiance based on the persons location;
+            webscrap solar panel mean cost;
+    ''' 
+
     @staticmethod
     def calculate_solar_panel_autonomy(panel_power_entry, panel_cost_entry):
         try:
@@ -413,7 +331,7 @@ class SolarEnergy:
             # Calculate annual consumption
             annual_consumption = average_kWh_consumption * 12
 
-            # Solar panel generation data
+            # Solar panel generation data !!!!!!!!!
             noct_irradiation_rate = 800  # Assuming 800 kWh/m²/year
             correction_factor_F = 0.85  # Correction factor
 
@@ -501,7 +419,7 @@ tk.Label(frame1, text='Date:').pack(pady=5)
 entry_date.pack(pady=5)
 
 value_box = tk.Entry(frame1, width=15)
-tk.Label(frame1, text='Value:').pack(pady=5)
+tk.Label(frame1, text='Pricing:').pack(pady=5)
 value_box.pack(pady=5)
 
 kWh_box = tk.Entry(frame1, width=15)  
@@ -517,10 +435,10 @@ tk.Label(frame2, text="Table of Past Expenses").pack(pady=20)
 display_table_btn = tk.Button(frame2, text="Show Table", command=lambda: Expenses.display_table(frame2, table))
 display_table_btn.pack(pady=10)
 
-delete_button = tk.Button(frame2, text='Delete Selected', command=lambda: Expenses.delete_data(table, df))
+delete_button = tk.Button(frame2, text='Delete Selected', command=lambda: Expenses.delete_record(table, df))
 delete_button.pack(pady=10)
 
-edit_button = tk.Button(frame2, text='Edit Selected', command=lambda: Expenses.modify_data(table, df, frame2, visualize_previous_expenses))
+edit_button = tk.Button(frame2, text='Edit Selected', command=lambda: Expenses.edit_record(table, df))
 edit_button.pack(pady=10)
 
 tk.Label(frame3, text="Visualize Previous Expenses").pack(pady=20)
@@ -534,7 +452,7 @@ tk.Label(frame4, text="Panel Power (kWp):").pack(pady=5)
 panel_power_entry = tk.Entry(frame4, width=15)
 panel_power_entry.pack(pady=5)
 
-tk.Label(frame4, text="Panel Cost (R$/Wp):").pack(pady=5)
+tk.Label(frame4, text="Panel Cost (US$/Wp):").pack(pady=5)
 panel_cost_entry = tk.Entry(frame4, width=15)
 panel_cost_entry.pack(pady=5)
 
