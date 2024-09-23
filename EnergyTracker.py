@@ -7,461 +7,444 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from ttkbootstrap import Style
 
-tabela = None
+table = None
 
-class Casa:
+class House:
     def __init__(self):
         self.data = None
-        self.valor = None
+        self.value = None
         self.kWh = None
 
-class Gastos:
+class Expenses:
     @staticmethod
-    def validar_data(data):
-        padrao_data = re.compile(r'^\d{2}/\d{2}/\d{4}$')
-        return bool(padrao_data.match(data))
+    def validate_data(data):
+        date_pattern = re.compile(r'^\d{2}/\d{2}/\d{4}$')
+        return bool(date_pattern.match(data))
 
     @staticmethod
-    def visualizar_gastos_passados(frame3):
-        # Limpar qualquer widget existente no frame3
+    def visualize_previous_expenses(frame3):
+        # Clear any existing widgets in frame3
         for widget in frame3.winfo_children():
             widget.destroy()
 
-        # Verificar se o arquivo CSV existe
-        if not os.path.exists('historico_contas.csv'):
-            messagebox.showinfo("Aviso", "Nenhum dado encontrado.")
+        # Check if the CSV file exists
+        if not os.path.exists('electricity_bill_history.csv'):
+            messagebox.showinfo("Notice", "No data found.")
             return
 
         try:
-            # Carregar os dados do arquivo CSV usando Pandas
-            df = pd.read_csv('historico_contas.csv')
+            # Load the data from the CSV file using Pandas
+            df = pd.read_csv('electricity_bill_history.csv')
 
-            # Verificar se o DataFrame está vazio
+            # Check if the DataFrame is empty
             if df.empty:
-                messagebox.showinfo("Aviso", "Nenhum dado encontrado.")
+                messagebox.showinfo("Notice", "No data found.")
                 return
 
-            # Ajustar a leitura da coluna 'Data' para considerar o formato 'YYYY-MM-DD'
-            df['Data'] = pd.to_datetime(df['Data'], errors='coerce', format='%Y-%m-%d')
+            # Adjust reading the 'Date' column to consider 'YYYY-MM-DD' format
+            df['Date'] = pd.to_datetime(df['Date'], errors='coerce', format='%Y-%m-%d')
 
-            # Filtrar linhas onde a conversão falhou (Valores incorretos ou 'Data' no cabeçalho)
-            df = df.dropna(subset=['Data'])
+            # Filter out rows where conversion failed (incorrect values or 'Date' in the header)
+            df = df.dropna(subset=['Date'])
 
-            # Ordenar os dados por data
-            df = df.sort_values(by='Data')
+            # Sort the data by date
+            df = df.sort_values(by='Date')
 
-            # Agrupar por mês e ano
-            df_agrupado = df.groupby(df['Data'].dt.to_period("M")).agg({'Valor': 'sum', 'kWh': 'sum'}).reset_index()
+            # Group by month and year
+            grouped_df = df.groupby(df['Date'].dt.to_period("M")).agg({'Value': 'sum', 'kWh': 'sum'}).reset_index()
 
-            # Criar gráfico com duas linhas
+            # Create a graph with two lines
             fig, ax1 = plt.subplots(figsize=(10, 6))
 
-            # Plotar linha de Valor
-            ax1.plot(df_agrupado['Data'].dt.strftime('%m-%Y'), df_agrupado['Valor'], marker='o', color='b', label='Reais')
-            ax1.set_xlabel('Mês e Ano')
-            ax1.set_ylabel('Valor Total', color='b')
+            # Plot Value line
+            ax1.plot(grouped_df['Date'].dt.strftime('%m-%Y'), grouped_df['Value'], marker='o', color='b', label='Currency')
+            ax1.set_xlabel('Month and Year')
+            ax1.set_ylabel('Total Value', color='b')
             ax1.tick_params('y', colors='b')
 
-            # Criar segundo eixo y para kWh
+            # Create a second y-axis for kWh
             ax2 = ax1.twinx()
-            ax2.plot(df_agrupado['Data'].dt.strftime('%m-%Y'), df_agrupado['kWh'], marker='s', color='r', label='kWh')
-            ax2.set_ylabel('kWh Total', color='r')
+            ax2.plot(grouped_df['Date'].dt.strftime('%m-%Y'), grouped_df['kWh'], marker='s', color='r', label='kWh')
+            ax2.set_ylabel('Total kWh', color='r')
             ax2.tick_params('y', colors='r')
 
-            # Configurar rótulos e título
-            ax1.set_title('Evolução em Reais e Consumo kWh')
-            ax1.set_xticks(df_agrupado['Data'].dt.strftime('%m-%Y'))
-            ax1.set_xticklabels(df_agrupado['Data'].dt.strftime('%m-%Y'), rotation=45, ha='right')
+            # Set labels and title
+            ax1.set_title('Evolution in Currency and kWh Consumption')
+            ax1.set_xticks(grouped_df['Date'].dt.strftime('%m-%Y'))
+            ax1.set_xticklabels(grouped_df['Date'].dt.strftime('%m-%Y'), rotation=45, ha='right')
 
-            # Adicionar grade
+            # Add grid
             ax1.grid(True)
 
-            # Adicionar legenda
+            # Add legend
             ax1.legend(loc='upper left')
             ax2.legend(loc='upper right')
 
-            # Exibir gráfico
+            # Display the graph
             plt.tight_layout()
 
-            # Criar objeto FigureCanvasTkAgg e adicionar ao frame3
+            # Create FigureCanvasTkAgg object and add to frame3
             canvas = FigureCanvasTkAgg(fig, master=frame3)
             canvas.draw()
             canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
         except Exception as e:
-            messagebox.showinfo("Erro", f"Erro ao visualizar gastos passados: {str(e)}")
+            messagebox.showinfo("Error", f"Error displaying previous expenses: {str(e)}")
 
     @staticmethod
-    def salvar_historico(entry_data, caixa_valor, caixa_kWh):
+    def save_history(entry_date, value_box, kWh_box):
         try:
-            # Obtendo os valores dos widgets de entrada
-            data_conta = entry_data.get()
-            valor_conta = caixa_valor.get()
-            kWh_conta = caixa_kWh.get()
+            # Get values from the input widgets
+            bill_date = entry_date.get()
+            bill_value = value_box.get()
+            kWh_value = kWh_box.get()
 
-            if not Gastos.validar_data(data_conta):
-                messagebox.showinfo("Erro", "Formato de data inválido. Use DD/MM/AAAA.")
+            if not Expenses.validate_data(bill_date):
+                messagebox.showinfo("Error", "Invalid date format. Use DD/MM/YYYY.")
                 return
 
-            # Criar o DataFrame se o arquivo CSV existir
-            if os.path.exists('historico_contas.csv'):
-                df = pd.read_csv('historico_contas.csv')
+            # Create the DataFrame if the CSV file exists
+            if os.path.exists('electricity_bill_history.csv'):
+                df = pd.read_csv('electricity_bill_history.csv')
             else:
-                df = pd.DataFrame(columns=['Data', 'Valor', 'kWh'])
+                df = pd.DataFrame(columns=['Date', 'Value', 'kWh'])
 
-            # Adicionar nova entrada ao DataFrame apenas se todos os valores estiverem presentes
-            if data_conta and valor_conta and kWh_conta:
-                nova_entrada = pd.DataFrame({'Data': [pd.to_datetime(data_conta, format='%d/%m/%Y', errors='coerce').strftime('%Y-%m-%d')],
-                                            'Valor': [float(valor_conta)],
-                                            'kWh': [float(kWh_conta)]})
-                df = pd.concat([df, nova_entrada], ignore_index=True)
+            # Add new entry to the DataFrame only if all values are present
+            if bill_date and bill_value and kWh_value:
+                new_entry = pd.DataFrame({'Date': [pd.to_datetime(bill_date, format='%d/%m/%Y', errors='coerce').strftime('%Y-%m-%d')],
+                                          'Value': [float(bill_value)],
+                                          'kWh': [float(kWh_value)]})
+                df = pd.concat([df, new_entry], ignore_index=True)
 
-            # Salvar o DataFrame de volta ao arquivo CSV
-            df.to_csv('historico_contas.csv', index=False)
+            # Save the DataFrame back to the CSV file
+            df.to_csv('electricity_bill_history.csv', index=False)
 
-            messagebox.showinfo("Sucesso", "Dados salvos com sucesso.")
+            messagebox.showinfo("Success", "Data saved successfully.")
 
-            # Atualizar a tabela
-            Gastos.exibir_tabela(frame2, tabela)
+            # Update the table
+            Expenses.display_table(frame2, table)
 
-            # Atualizar o gráfico
-            Gastos.visualizar_gastos_passados(frame3)
+            # Update the graph
+            Expenses.visualize_previous_expenses(frame3)
 
         except Exception as e:
-            messagebox.showinfo("Erro", f"Erro ao salvar dados: {str(e)}")
+            messagebox.showinfo("Error", f"Error saving data: {str(e)}")
 
     @staticmethod
-    def exibir_tabela(frame2, tabela):
-        # Verificar se o arquivo CSV existe
-        if not os.path.exists('historico_contas.csv'):
-            messagebox.showinfo("Aviso", "Nenhum dado encontrado.")
+    def display_table(frame2, table):
+        # Check if the CSV file exists
+        if not os.path.exists('electricity_bill_history.csv'):
+            messagebox.showinfo("Notice", "No data found.")
             return
 
         try:
-            # Carregar os dados do arquivo CSV usando Pandas
-            df = pd.read_csv('historico_contas.csv')
+            # Load the data from the CSV file using Pandas
+            df = pd.read_csv('electricity_bill_history.csv')
 
-            # Verificar se o DataFrame está vazio
+            # Check if the DataFrame is empty
             if df.empty:
-                messagebox.showinfo("Aviso", "Nenhum dado encontrado.")
+                messagebox.showinfo("Notice", "No data found.")
                 return
 
-            # Ajustar a leitura da coluna 'Data' para considerar o formato 'YYYY-MM-DD'
-            df['Data'] = pd.to_datetime(df['Data'], errors='coerce', format='%Y-%m-%d')
+            # Adjust reading the 'Date' column to consider 'YYYY-MM-DD' format
+            df['Date'] = pd.to_datetime(df['Date'], errors='coerce', format='%Y-%m-%d')
 
-            # Filtrar linhas onde a conversão falhou (Valores incorretos ou 'Data' no cabeçalho)
-            df = df.dropna(subset=['Data'])
+            # Filter out rows where conversion failed (incorrect values or 'Date' in the header)
+            df = df.dropna(subset=['Date'])
 
-            # Ordenar os dados por data
-            df = df.sort_values(by='Data')
+            # Sort the data by date
+            df = df.sort_values(by='Date')
 
-            # Destruir os widgets existentes no frame2, exceto os primeiros (índices 2 e superiores)
+            # Destroy existing widgets in frame2, except the first two (indices 2 and above)
             for widget in frame2.winfo_children()[2:]:
                 widget.destroy()
 
-            # Criar a tabela no frame2
-            tabela = ttk.Treeview(frame2, columns=['Data', 'Valor', 'kWh'], show='headings')
+            # Create the table in frame2
+            table = ttk.Treeview(frame2, columns=['Date', 'Value', 'kWh'], show='headings')
 
-            botao_excluir = tk.Button(frame2, text='Excluir Selecionado', command=lambda: Gastos.excluir_dado(tabela, df))
-            botao_excluir.pack(pady=10)
+            delete_button = tk.Button(frame2, text='Delete Selected', command=lambda: Expenses.delete_data(table, df))
+            delete_button.pack(pady=10)
 
-            botao_alterar = tk.Button(frame2, text='Alterar Selecionado', command=lambda: Gastos.alterar_dado(tabela, df))
-            botao_alterar.pack(pady=10)     
+            modify_button = tk.Button(frame2, text='Modify Selected', command=lambda: Expenses.modify_data(table, df))
+            modify_button.pack(pady=10)
 
-            # Definir cabeçalhos
-            tabela.heading('Data', text='Data')
-            tabela.heading('Valor', text='Valor')
-            tabela.heading('kWh', text='kWh')
+            # Define headers
+            table.heading('Date', text='Date')
+            table.heading('Value', text='Value')
+            table.heading('kWh', text='kWh')
 
-            # Adicionar os dados à tabela
+            # Add data to the table
             for index, row in df.iterrows():
-                tabela.insert("", "end", values=(row['Data'].strftime('%d/%m/%Y'), row['Valor'], row['kWh']))
+                table.insert("", "end", values=(row['Date'].strftime('%d/%m/%Y'), row['Value'], row['kWh']))
 
-            # Adicionar a tabela ao frame
-            tabela.pack(padx=10, pady=10)
-
-            # Adicionar botões para excluir e alterar dados, se ainda não existirem
-            if not any(isinstance(widget, tk.Button) for widget in frame2.winfo_children()):
-                botao_excluir = tk.Button(frame2, text='Excluir Selecionado', command=lambda: Gastos.excluir_dado(tabela, df))
-                botao_excluir.pack(pady=10)
-
-                botao_alterar = tk.Button(frame2, text='Alterar Selecionado', command=lambda: Gastos.alterar_dado(tabela, df))
-                botao_alterar.pack(pady=10)
+            # Add the table to frame2
+            table.pack(padx=10, pady=10)
 
         except Exception as e:
-            messagebox.showinfo("Erro", f"Erro ao exibir tabela: {str(e)}")
-        @staticmethod
-        def excluir_dado(tabela, df):
-            # Obter item selecionado na tabela
-            item_selecionado = tabela.selection()
-            if not item_selecionado:
-                messagebox.showinfo("Aviso", "Nenhum item selecionado.")
-                return
-
-            # Obter índice do item selecionado
-            index = tabela.index(item_selecionado)
-
-            # Remover a linha correspondente no DataFrame
-            df = df.drop(index, axis=0)
-
-            # Salvar o DataFrame atualizado de volta ao arquivo CSV
-            df.to_csv('historico_contas.csv', index=False)
-
-            # Remover item da tabela
-            tabela.delete(item_selecionado)
-
-            messagebox.showinfo("Sucesso", "Item excluído com sucesso.")
-
-        @staticmethod
-        def alterar_dado(tabela, df, frame2, visualizar_gastos_passados):
-            # Obter item selecionado na tabela
-            item_selecionado = tabela.selection()
-            if not item_selecionado:
-                messagebox.showinfo("Aviso", "Nenhum item selecionado.")
-                return
-
-            # Obter índice do item selecionado
-            index = tabela.index(item_selecionado)
-
-            # Abrir janela para edição
-            janela_edicao = tk.Toplevel(root)
-
-            # Adicionar campos para edição
-            tk.Label(janela_edicao, text="Nova Data:").grid(row=0, column=0)
-            nova_data_entry = tk.Entry(janela_edicao)
-            nova_data_entry.grid(row=0, column=1)
-
-            tk.Label(janela_edicao, text="Novo Valor:").grid(row=1, column=0)
-            novo_valor_entry = tk.Entry(janela_edicao)
-            novo_valor_entry.grid(row=1, column=1)
-
-            # Preencher os campos de edição com os valores atuais
-            nova_data_entry.insert(0, df.at[index, 'Data'].strftime('%d/%m/%Y'))
-            novo_valor_entry.insert(0, df.at[index, 'Valor'])
-
-            # Função para aplicar as alterações
-            def aplicar_alteracoes():
-                # Obter os novos valores
-                nova_data = nova_data_entry.get()
-                novo_valor = novo_valor_entry.get()
-
-                # Validar a data
-                if not validar_data(nova_data):
-                    messagebox.showinfo("Erro", "Formato de data inválido. Use DD/MM/AAAA.")
-                    return
-
-                # Converter a nova data para datetime
-                nova_data = pd.to_datetime(nova_data, format='%d/%m/%Y', errors='coerce')
-
-                # Verificar se a conversão falhou
-                if pd.isnull(nova_data):
-                    messagebox.showinfo("Erro", "Data inválida.")
-                    return
-
-                # Atualizar os valores no DataFrame
-                df.at[index, 'Data'] = nova_data
-                df.at[index, 'Valor'] = float(novo_valor)
-
-                # Atualizar a tabela
-                tabela.item(item_selecionado, values=(nova_data.strftime('%d/%m/%Y'), novo_valor))
-
-                # Salvar o DataFrame atualizado de volta ao arquivo CSV
-                df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%Y', errors='coerce')  
-                df.to_csv('historico_contas.csv', index=False)
-
-                # Fechar a janela de edição
-                janela_edicao.destroy()
-
-                messagebox.showinfo("Sucesso", "Item alterado com sucesso.")
-
-                # Adicionar botão para visualizar o gráfico após alterar o dado
-                botao_visualizar_grafico = tk.Button(frame2, text='Visualizar Gastos Passados', command=visualizar_gastos_passados)
-                botao_visualizar_grafico.pack(pady=10)
+            messagebox.showinfo("Error", f"Error displaying table: {str(e)}")
 
     @staticmethod
-    def excluir_dado(tabela, df):
-        # Obter item selecionado na tabela
-        item_selecionado = tabela.selection()
-        if not item_selecionado:
-            messagebox.showinfo("Aviso", "Nenhum item selecionado.")
+    def delete_data(table, df):
+        # Get the selected item in the table
+        selected_item = table.selection()
+        if not selected_item:
+            messagebox.showinfo("Notice", "No item selected.")
             return
 
-        # Obter índice do item selecionado
-        index = tabela.index(item_selecionado)
+        # Get the index of the selected item
+        index = table.index(selected_item)
 
-        # Remover a linha correspondente no DataFrame
+        # Remove the corresponding row in the DataFrame
         df = df.drop(index, axis=0)
 
-        # Salvar o DataFrame atualizado de volta ao arquivo CSV
-        df.to_csv('historico_contas.csv', index=False)
+        # Save the updated DataFrame back to the CSV file
+        df.to_csv('electricity_bill_history.csv', index=False)
 
-        # Remover item da tabela
-        tabela.delete(item_selecionado)
+        # Remove item from the table
+        table.delete(selected_item)
 
-        messagebox.showinfo("Sucesso", "Item excluído com sucesso.")
-
-    # Atualizar a tabela
-        Gastos.exibir_tabela(frame2, tabela)
-
-        # Atualizar o gráfico
-        Gastos.visualizar_gastos_passados(frame3)
+        messagebox.showinfo("Success", "Item successfully deleted.")
 
     @staticmethod
-    def alterar_dado(tabela, df):
-        # Obter item selecionado na tabela
-        item_selecionado = tabela.selection()
-        if not item_selecionado:
-            messagebox.showinfo("Aviso", "Nenhum item selecionado.")
+    def modify_data(table, df, frame2, visualize_previous_expenses):
+        # Get the selected item in the table
+        selected_item = table.selection()
+        if not selected_item:
+            messagebox.showinfo("Notice", "No item selected.")
             return
 
-        # Obter índice do item selecionado
-        index = tabela.index(item_selecionado)
+        # Get the index of the selected item
+        index = table.index(selected_item)
 
-        # Abrir janela para edição
-        janela_edicao = tk.Toplevel(root)
+        # Open a window for editing
+        edit_window = tk.Toplevel(root)
 
-        # Adicionar campos para edição
-        tk.Label(janela_edicao, text="Nova Data:").grid(row=0, column=0)
-        nova_data_entry = tk.Entry(janela_edicao)
-        nova_data_entry.grid(row=0, column=1)
+        # Add fields for editing
+        tk.Label(edit_window, text="New Date:").grid(row=0, column=0)
+        new_date_entry = tk.Entry(edit_window)
+        new_date_entry.grid(row=0, column=1)
 
-        tk.Label(janela_edicao, text="Novo Valor:").grid(row=1, column=0)
-        novo_valor_entry = tk.Entry(janela_edicao)
-        novo_valor_entry.grid(row=1, column=1)
+        tk.Label(edit_window, text="New Value:").grid(row=1, column=0)
+        new_value_entry = tk.Entry(edit_window)
+        new_value_entry.grid(row=1, column=1)
 
-        tk.Label(janela_edicao, text="Confirmar Alteracao?").grid(row=2, column=0)      
-        botao_confirmar_alteracao = tk.Button(janela_edicao, text='Alterar dados', command=lambda: Gastos.aplicar_alteracoes(janela_edicao, nova_data_entry, novo_valor_entry, tabela, df, item_selecionado, index))
-        botao_confirmar_alteracao.grid(row=2, column=1)
+        # Populate the edit fields with the current values
+        new_date_entry.insert(0, df.at[index, 'Date'].strftime('%d/%m/%Y'))
+        new_value_entry.insert(0, df.at[index, 'Value'])
 
-        # Preencher os campos de edição com os valores atuais
-        nova_data_entry.insert(0, df.at[index, 'Data'].strftime('%d/%m/%Y'))
-        novo_valor_entry.insert(0, df.at[index, 'Valor'])
+        # Function to apply the changes
+        def apply_changes():
+            # Get the new values
+            new_date = new_date_entry.get()
+            new_value = new_value_entry.get()
 
-
-
-    @staticmethod
-    def aplicar_alteracoes(janela_edicao, nova_data_entry, novo_valor_entry, tabela, df, item_selecionado, index):
-            # Obter os novos valores
-            nova_data = nova_data_entry.get()
-            novo_valor = novo_valor_entry.get()
-
-            # Validar a data
-            if not Gastos.validar_data(nova_data):
-                messagebox.showinfo("Erro", "Formato de data inválido. Use DD/MM/AAAA.")
+            # Validate the date
+            if not Expenses.validate_data(new_date):
+                messagebox.showinfo("Error", "Invalid date format. Use DD/MM/YYYY.")
                 return
 
-            # Converter a nova data para datetime
-            nova_data = pd.to_datetime(nova_data, format='%d/%m/%Y', errors='coerce')
+            # Update the DataFrame
+            df.at[index, 'Date'] = pd.to_datetime(new_date, format='%d/%m/%Y', errors='coerce')
+            df.at[index, 'Value'] = float(new_value)
 
-            # Verificar se a conversão falhou
-            if pd.isnull(nova_data):
-                messagebox.showinfo("Erro", "Data inválida.")
-                return
+            # Save the updated DataFrame back to the CSV file
+            df.to_csv('electricity_bill_history.csv', index=False)
 
-            # Atualizar os valores no DataFrame
-            df.at[index, 'Data'] = nova_data
-            df.at[index, 'Valor'] = float(novo_valor)
+            messagebox.showinfo("Success", "Item successfully modified.")
 
-            # Atualizar a tabela
-            tabela.item(item_selecionado, values=(nova_data.strftime('%d/%m/%Y'), novo_valor))
+            # Close the window
+            edit_window.destroy()
 
-            # Salvar o DataFrame atualizado de volta ao arquivo CSV
-            df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%Y', errors='coerce')
-            df.to_csv('historico_contas.csv', index=False)
+            # Refresh the table and graph
+            Expenses.display_table(frame2, table)
+            visualize_previous_expenses()
 
-            # Fechar a janela de edição
-            janela_edicao.destroy()
+        # Add a button to apply the changes
+        apply_button = tk.Button(edit_window, text="Apply Changes", command=apply_changes)
+        apply_button.grid(row=2, column=0, columnspan=2)
 
-            messagebox.showinfo("Sucesso", "Item alterado com sucesso.")
-
-
-        # Atualizar a tabela
-            Gastos.exibir_tabela(frame2, tabela)
-
-            # Atualizar o gráfico
-            Gastos.visualizar_gastos_passados(frame3)
-
-
-class EnergiaSolar:
     @staticmethod
-    def calcular_autonomia_paineis_solares(entry_potencia_painel, entry_custo_painel):
+    def delete_record(table, df):
+        # Get selected item from the table
+        selected_item = table.selection()
+        if not selected_item:
+            messagebox.showinfo("Notice", "No item selected.")
+            return
+    
+        # Get the index of the selected item
+        index = table.index(selected_item)
+    
+        # Remove the corresponding row from the DataFrame
+        df = df.drop(index, axis=0)
+    
+        # Save the updated DataFrame back to the CSV file
+        df.to_csv('electricity_bill_history.csv', index=False)
+    
+        # Remove the item from the table
+        table.delete(selected_item)
+    
+        messagebox.showinfo("Success", "Item successfully deleted.")
+    
+        # Refresh the table
+        Expenses.display_table(frame2, table)
+    
+        # Update the graph
+        Expenses.visualize_previous_expenses(frame3)
+
+    @staticmethod
+    def edit_record(table, df):
+        # Get selected item from the table
+        selected_item = table.selection()
+        if not selected_item:
+            messagebox.showinfo("Notice", "No item selected.")
+            return
+    
+        # Get the index of the selected item
+        index = table.index(selected_item)
+    
+        # Open window for editing
+        edit_window = tk.Toplevel(root)
+    
+        # Add fields for editing
+        tk.Label(edit_window, text="New Date:").grid(row=0, column=0)
+        new_date_entry = tk.Entry(edit_window)
+        new_date_entry.grid(row=0, column=1)
+    
+        tk.Label(edit_window, text="New Value:").grid(row=1, column=0)
+        new_value_entry = tk.Entry(edit_window)
+        new_value_entry.grid(row=1, column=1)
+    
+        tk.Label(edit_window, text="Confirm Changes?").grid(row=2, column=0)
+        confirm_button = tk.Button(edit_window, text='Update Data', 
+                                   command=lambda: Expenses.apply_changes(edit_window, new_date_entry, new_value_entry, table, df, selected_item, index))
+        confirm_button.grid(row=2, column=1)
+    
+        # Populate the editing fields with current values
+        new_date_entry.insert(0, df.at[index, 'Date'].strftime('%d/%m/%Y'))
+        new_value_entry.insert(0, df.at[index, 'Value'])
+    
+    @staticmethod
+    def apply_changes(edit_window, new_date_entry, new_value_entry, table, df, selected_item, index):
+        # Get the new values
+        new_date = new_date_entry.get()
+        new_value = new_value_entry.get()
+    
+        # Validate the date
+        if not Expenses.validate_date(new_date):
+            messagebox.showinfo("Error", "Invalid date format. Use DD/MM/YYYY.")
+            return
+    
+        # Convert the new date to datetime
+        new_date = pd.to_datetime(new_date, format='%d/%m/%Y', errors='coerce')
+    
+        # Check if the conversion failed
+        if pd.isnull(new_date):
+            messagebox.showinfo("Error", "Invalid date.")
+            return
+    
+        # Update values in the DataFrame
+        df.at[index, 'Date'] = new_date
+        df.at[index, 'Value'] = float(new_value)
+    
+        # Update the table
+        table.item(selected_item, values=(new_date.strftime('%d/%m/%Y'), new_value))
+    
+        # Save the updated DataFrame back to the CSV file
+        df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y', errors='coerce')
+        df.to_csv('electricity_bill_history.csv', index=False)
+    
+        # Close the editing window
+        edit_window.destroy()
+    
+        messagebox.showinfo("Success", "Item updated successfully.")
+    
+        # Refresh the table
+        Expenses.display_table(frame2, table)
+    
+        # Update the graph
+        Expenses.visualize_previous_expenses(frame3)
+    
+
+class SolarEnergy:
+    @staticmethod
+    def calculate_solar_panel_autonomy(panel_power_entry, panel_cost_entry):
         try:
-            # Verificar se o arquivo CSV existe
-            if not os.path.exists('historico_contas.csv'):
-                messagebox.showinfo("Aviso", "Nenhum dado encontrado.")
+            # Check if the CSV file exists
+            if not os.path.exists('electricity_bill_history.csv'):
+                messagebox.showinfo("Notice", "No data found.")
                 return
 
-            # Carregar os dados do arquivo CSV usando Pandas
-            df = pd.read_csv('historico_contas.csv', parse_dates=['Data'], dayfirst=True)
+            # Load the data from the CSV file using Pandas
+            df = pd.read_csv('electricity_bill_history.csv', parse_dates=['Date'], dayfirst=True)
 
-            # Verificar se o DataFrame está vazio
+            # Check if the DataFrame is empty
             if df.empty:
-                messagebox.showinfo("Aviso", "Nenhum dado encontrado no arquivo CSV.")
+                messagebox.showinfo("Notice", "No data found in the CSV file.")
                 return
 
-            # Converter as colunas 'Valor' e 'kWh' para números
-            df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce')
+            # Convert the 'Value' and 'kWh' columns to numeric
+            df['Value'] = pd.to_numeric(df['Value'], errors='coerce')
             df['kWh'] = pd.to_numeric(df['kWh'], errors='coerce')
 
-            # Verificar se há valores nulos na coluna 'kWh'
+            # Check for null values in the 'kWh' column
             if df['kWh'].isnull().any():
-                messagebox.showinfo("Aviso", "Existem valores nulos ou não numéricos na coluna 'kWh'.")
+                messagebox.showinfo("Notice", "There are null or non-numeric values in the 'kWh' column.")
                 return
 
-            # Calcular a média do consumo em kWh
-            media_consumo_kWh = df['kWh'].mean()
+            # Calculate the average kWh consumption
+            average_kWh_consumption = df['kWh'].mean()
 
-            # Calcular o consumo anual
-            consumo_anual = media_consumo_kWh * 12
+            # Calculate annual consumption
+            annual_consumption = average_kWh_consumption * 12
 
-            # Obter dados de geração dos painéis solares
-            taxa_irradiacao_noct = 800  # Considerando 800 kWh/m²/ano
-            fator_correcao_F = 0.85  # Fator de correção
+            # Solar panel generation data
+            noct_irradiation_rate = 800  # Assuming 800 kWh/m²/year
+            correction_factor_F = 0.85  # Correction factor
 
-            # Calcular a potência dos painéis solares
-            potencia_paineis = (media_consumo_kWh * 12) / (taxa_irradiacao_noct * fator_correcao_F)
+            # Calculate the power of the solar panels
+            panel_power = (average_kWh_consumption * 12) / (noct_irradiation_rate * correction_factor_F)
 
-            # Calcular a quantidade de painéis solares necessários
-            quantidade_paineis = potencia_paineis / float(entry_potencia_painel.get())
+            # Calculate the number of solar panels needed
+            num_panels = panel_power / float(panel_power_entry.get())
 
-            # Calcular o preço médio por kWh usando a base de dados
-            total_valor = df['Valor'].sum()
+            # Calculate the average price per kWh using the database
+            total_value = df['Value'].sum()
             total_kWh = df['kWh'].sum()
 
             if total_kWh == 0:
-                messagebox.showinfo("Aviso", "Não é possível calcular o preço médio por kWh. Total de kWh é zero.")
+                messagebox.showinfo("Notice", "Unable to calculate the average price per kWh. Total kWh is zero.")
                 return
 
-            preco_medio_kWh = total_valor / total_kWh
+            avg_price_kWh = total_value / total_kWh
 
-            # Calcular os custos envolvidos
-            custo_painel = float(entry_custo_painel.get())
-            custo_total = quantidade_paineis * custo_painel
+            # Calculate the costs involved
+            panel_cost = float(panel_cost_entry.get())
+            total_cost = num_panels * panel_cost
 
-            # Calcular a economia anual esperada
-            economia_anual_esperada = media_consumo_kWh * 12 * preco_medio_kWh
+            # Calculate the expected annual savings
+            expected_annual_savings = average_kWh_consumption * 12 * avg_price_kWh
 
-            # Calcular o tempo de retorno financeiro
-            tempo_retorno_financeiro = custo_total / economia_anual_esperada
+            # Calculate the financial payback period
+            financial_payback_period = total_cost / expected_annual_savings
 
-            messagebox.showinfo("Resultado", f"A média de consumo mensal em kWh é {round(media_consumo_kWh, 2)}.\n"
-                                            f"O consumo anual estimado é {round(consumo_anual, 2)} kWh.\n\n"
-                                            f"A potência dos painéis solares necessários é {round(potencia_paineis, 2)} Wp.\n"
-                                            f"São necessários aproximadamente {round(quantidade_paineis, 2)} painéis solares.\n\n"
-                                            f"O custo total estimado é R${round(custo_total, 2)}.\n"
-                                            f"A economia anual esperada é R${round(economia_anual_esperada, 2)}.\n"
-                                            f"O tempo de retorno financeiro é aproximadamente {round(tempo_retorno_financeiro, 2)} anos.")
+            messagebox.showinfo("Result", f"The average monthly consumption in kWh is {round(average_kWh_consumption, 2)}.\n"
+                                          f"The estimated annual consumption is {round(annual_consumption, 2)} kWh.\n\n"
+                                          f"The required solar panel power is {round(panel_power, 2)} Wp.\n"
+                                          f"Approximately {round(num_panels, 2)} solar panels are needed.\n\n"
+                                          f"The estimated total cost is R${round(total_cost, 2)}.\n"
+                                          f"The expected annual savings are R${round(expected_annual_savings, 2)}.\n"
+                                          f"The financial payback period is approximately {round(financial_payback_period, 2)} years.")
 
         except Exception as e:
-            messagebox.showinfo("Erro", f"Erro ao calcular autonomia de painéis solares: {str(e)}")
+            messagebox.showinfo("Error", f"Error calculating solar panel autonomy: {str(e)}")
 
 style = Style()
 
-# Criar a janela principal
+# Create the main window
 root = style.master
 style = Style(theme='superhero')
 
-# Adquirir tamanho da tela
+# Get screen size
 screen_width = root.winfo_screenwidth()
 screen_height = root.winfo_screenheight()
 
@@ -469,77 +452,77 @@ width = screen_width
 height = screen_height 
 root.geometry(f"{width}x{height}")
 
-root.title('Controle de Gastos Energéticos')
+root.title('Energy Expense Control')
 
-# Criando um notebook (Widget para manusear diferentes abas)
+# Create a notebook (Widget to handle different tabs)
 notebook = ttk.Notebook(root, height=screen_height, width=screen_width)
 notebook.pack(pady=0, expand=False)
 
-# Criando as abas
+# Creating the tabs
 frame1 = ttk.Frame(notebook, width=width, height=height)
 frame2 = ttk.Frame(notebook, width=width, height=height)
 frame3 = ttk.Frame(notebook, width=width, height=height)
 frame4 = ttk.Frame(notebook, width=width, height=height)
 
-frame1.pack(fill='both', expand=True)  # Página Inicial
-frame2.pack(fill='both', expand=True)  # Tabela de Gastos Passados
-frame3.pack(fill='both', expand=True)  # Visualizar Gastos Passados
-frame4.pack(fill='both', expand=True)  # Area Verde
+frame1.pack(fill='both', expand=True)  # Home Page
+frame2.pack(fill='both', expand=True)  # Table of Past Expenses
+frame3.pack(fill='both', expand=True)  # View Past Expenses
+frame4.pack(fill='both', expand=True)  # Solar Planning
 
-notebook.add(frame1, text='Página Inicial')
-notebook.add(frame2, text='Tabela de Gastos Passados')
-notebook.add(frame3, text='Visualizar Gastos Passados')
-notebook.add(frame4, text='Planejamento Fotovoltáico')
+notebook.add(frame1, text='Home Page')
+notebook.add(frame2, text='Table of Past Expenses')
+notebook.add(frame3, text='View Past Expenses')
+notebook.add(frame4, text='Solar Planning')
 
-# Adicionar imagens às abas
+# Add images to tabs
 img1 = tk.PhotoImage(file="Images/casa-com-certificado-energetico.png")
 img4 = tk.PhotoImage(file="Images/5415790 (Telefone).png")
 
-label1 = tk.Label(frame1, image=img1, compound="top", text="Página Inicial").pack(pady=20)
+label1 = tk.Label(frame1, image=img1, compound="top", text="Home Page").pack(pady=20)
 
-entry_data = tk.Entry(frame1, width=15)
-tk.Label(frame1, text='Data:').pack(pady=5)
-entry_data.pack(pady=5)
+entry_date = tk.Entry(frame1, width=15)
+tk.Label(frame1, text='Date:').pack(pady=5)
+entry_date.pack(pady=5)
 
-caixa_valor = tk.Entry(frame1, width=15)
-tk.Label(frame1, text='Valor:').pack(pady=5)
-caixa_valor.pack(pady=5)
+value_box = tk.Entry(frame1, width=15)
+tk.Label(frame1, text='Value:').pack(pady=5)
+value_box.pack(pady=5)
 
-caixa_kWh = tk.Entry(frame1, width=15)  
+kWh_box = tk.Entry(frame1, width=15)  
 tk.Label(frame1, text='kWh:').pack(pady=5)
-caixa_kWh.pack(pady=5)
+kWh_box.pack(pady=5)
 
-botao_salvar = tk.Button(frame1, text="Salvar Conta", command=lambda: Gastos.salvar_historico(entry_data, caixa_valor, caixa_kWh))
-botao_salvar.pack(pady=10)
+save_button = tk.Button(frame1, text="Save Bill", command=lambda: Expenses.save_history(entry_date, value_box, kWh_box))
+save_button.pack(pady=10)
 
-tk.Label(frame2, text="Tabela de Gastos Passados").pack(pady=20)
+tk.Label(frame2, text="Table of Past Expenses").pack(pady=20)
 
-# Criação dos botões
-btn_exibir_tabela = tk.Button(frame2, text="Exibir Tabela", command=lambda: Gastos.exibir_tabela(frame2, tabela))
-btn_exibir_tabela.pack(pady=10)
+# Creating buttons
+show_table_btn = tk.Button(frame2, text="Show Table", command=lambda: Expenses.show_table(frame2, table))
+show_table_btn.pack(pady=10)
 
-botao_excluir = tk.Button(frame2, text='Excluir Selecionado', command=lambda: Gastos.excluir_dado(tabela, df))
-botao_excluir.pack(pady=10)
+delete_button = tk.Button(frame2, text='Delete Selected', command=lambda: Expenses.delete_data(table, df))
+delete_button.pack(pady=10)
 
-botao_alterar = tk.Button(frame2, text='Alterar Selecionado', command=lambda: Gastos.alterar_dado(tabela, df, frame2, visualizar_gastos_passados))
-botao_alterar.pack(pady=10)
+edit_button = tk.Button(frame2, text='Edit Selected', command=lambda: Expenses.edit_data(table, df, frame2, view_Previous_Expenses))
+edit_button.pack(pady=10)
 
-tk.Label(frame3, text="Visualizar Gastos Passados").pack(pady=20)
+tk.Label(frame3, text="View Past Expenses").pack(pady=20)
 
-btn_visualizar_grafico = tk.Button(frame3, text="Visualizar Gastos Passados", command=lambda: Gastos.visualizar_gastos_passados(frame3))
-btn_visualizar_grafico.pack(pady=10)
+view_chart_btn = tk.Button(frame3, text="View Past Expenses", command=lambda: Expenses.view_Previous_Expenses(frame3))
+view_chart_btn.pack(pady=10)
 
-tk.Label(frame4, text="Area Verde", image=img4, compound="top").pack(pady=20)
+tk.Label(frame4, text="Green Area", image=img4, compound="top").pack(pady=20)
 
-tk.Label(frame4, text="Potência do Painel (kWp):").pack(pady=5)
-entry_potencia_painel = tk.Entry(frame4, width=15)
-entry_potencia_painel.pack(pady=5)
+tk.Label(frame4, text="Panel Power (kWp):").pack(pady=5)
+panel_power_entry = tk.Entry(frame4, width=15)
+panel_power_entry.pack(pady=5)
 
-tk.Label(frame4, text="Custo do Painel (R$/Wp):").pack(pady=5)
-entry_custo_painel = tk.Entry(frame4, width=15)
-entry_custo_painel.pack(pady=5)
+tk.Label(frame4, text="Panel Cost (R$/Wp):").pack(pady=5)
+panel_cost_entry = tk.Entry(frame4, width=15)
+panel_cost_entry.pack(pady=5)
 
-botao_calcular_autonomia_paineis_solares = tk.Button(frame4, text='Calcular Autonomia de Painéis Solares', command=lambda: EnergiaSolar.calcular_autonomia_paineis_solares(entry_potencia_painel, entry_custo_painel))
-botao_calcular_autonomia_paineis_solares.pack(padx=10, pady=10)
+solar_autonomy_btn = tk.Button(frame4, text='Calculate Solar Panel Autonomy', command=lambda: SolarEnergy.calculate_solar_panel_autonomy(panel_power_entry, panel_cost_entry))
+solar_autonomy_btn.pack(padx=10, pady=10)
 
 root.mainloop()
