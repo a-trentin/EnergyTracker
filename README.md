@@ -48,7 +48,7 @@ The application's motivation is to optimize household consumption. In the short 
    
 ![](Images/tela1 "tela1")
 
-2. Second Tab: view the table with data from past accounts
+2. Second Tab: view the table with data from past billings
    
 ![](Images/tela2 "tela2")
 
